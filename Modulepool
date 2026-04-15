@@ -1,0 +1,290 @@
+*&---------------------------------------------------------------------*
+*& Report ZVB_MP_ALL
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT zvb_mp_all.
+
+" Call initial screen
+CALL SCREEN 100.
+
+
+" When create tab strip then this code generate itself
+*&SPWIZARD: FUNCTION CODES FOR TABSTRIP 'TS_INPUT'
+CONSTANTS: BEGIN OF c_ts_input,
+             tab1 LIKE sy-ucomm VALUE 'TS_INPUT_FC1',
+             tab2 LIKE sy-ucomm VALUE 'TS_INPUT_FC2',
+           END OF c_ts_input.
+*&SPWIZARD: DATA FOR TABSTRIP 'TS_INPUT'
+CONTROLS:  ts_input TYPE TABSTRIP.
+DATA: BEGIN OF g_ts_input,
+        subscreen   LIKE sy-dynnr,
+        prog        LIKE sy-repid VALUE 'ZVB_MP_ALL',
+        pressed_tab LIKE sy-ucomm VALUE c_ts_input-tab1,
+      END OF g_ts_input.
+DATA:      ok_code LIKE sy-ucomm.
+*&SPWIZARD: OUTPUT MODULE FOR TS 'TS_INPUT'. DO NOT CHANGE THIS LINE!
+*&SPWIZARD: SETS ACTIVE TAB
+MODULE ts_input_active_tab_set OUTPUT.
+  ts_input-activetab = g_ts_input-pressed_tab.
+  CASE g_ts_input-pressed_tab.
+    WHEN c_ts_input-tab1.
+      g_ts_input-subscreen = '0110'.
+    WHEN c_ts_input-tab2.
+      g_ts_input-subscreen = '0120'.
+    WHEN OTHERS.
+*&SPWIZARD:      DO NOTHING
+  ENDCASE.
+ENDMODULE.
+*&SPWIZARD: INPUT MODULE FOR TS 'TS_INPUT'. DO NOT CHANGE THIS LINE!
+*&SPWIZARD: GETS ACTIVE TAB
+MODULE ts_input_active_tab_get INPUT.
+  ok_code = sy-ucomm.
+  CASE ok_code.
+    WHEN c_ts_input-tab1.
+      g_ts_input-pressed_tab = c_ts_input-tab1.
+    WHEN c_ts_input-tab2.
+      g_ts_input-pressed_tab = c_ts_input-tab2.
+    WHEN OTHERS.
+*&SPWIZARD:      DO NOTHING
+  ENDCASE.
+ENDMODULE.
+
+
+" Declare variables which we assign in SE51
+DATA: gv_matnr_mara TYPE mara-matnr,
+      gv_ernam_mara TYPE mara-ernam,
+      gv_mtart_mara TYPE mara-mtart,
+      gv_matkl_mara TYPE mara-matkl,
+      gv_vbeln_vbak TYPE vbak-vbeln,
+      gv_ernam_vbak TYPE vbak-ernam,
+      gv_auart_vbak TYPE vbak-auart,
+      gv_netwr_vbak TYPE vbak-netwr.
+"Radio Button
+DATA: RB1_MAT TYPE c, RB2_SAL TYPE c.
+
+"For subscreen
+DATA gv_subscreen TYPE sy-dynnr.
+*&---------------------------------------------------------------------*
+*&      Module  USER_COMMAND_0100  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_0100 INPUT.
+  DATA: okcode_100 TYPE sy-ucomm.
+  IF okcode_100 = 'NEXT'. " Go to the output window
+    g_ts_input-pressed_tab = c_ts_input-tab2.
+  ELSEIF okcode_100 = 'PREVIOUS'. "Go to the input window
+    g_ts_input-pressed_tab = c_ts_input-tab1.
+  ENDIF.
+  CASE sy-ucomm.
+    WHEN 'BACK' OR 'CANCEL' OR 'EXIT'.
+      LEAVE PROGRAM.
+  ENDCASE.
+ENDMODULE.
+
+*&---------------------------------------------------------------------*
+*& Module SET_DEFAULT_RADIO OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+MODULE set_default_radio OUTPUT.
+  IF rb1_mat IS INITIAL AND rb2_sal IS INITIAL.
+    rb1_mat = 'X'. "Initially this radio button is selected
+    rb2_sal = ''.
+  ENDIF.
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*& Module DECIDE_SUBSCREEN OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+" Which subscreen should be Called for input is define here
+MODULE decide_subscreen OUTPUT.
+  IF rb1_mat = 'X'.
+    gv_subscreen = '0130'.      "Material Screen
+  ELSEIF rb2_sal = 'X'.
+    gv_subscreen = '0140'.      "Sales Screen
+  ENDIF.
+ENDMODULE.
+
+" Declare internal table
+DATA: gt_mara TYPE TABLE OF mara,
+      gt_vbak TYPE TABLE OF vbak.
+
+" Declaration for container and alv grid
+DATA: go_container TYPE REF TO cl_gui_custom_container,
+      go_alv TYPE REF TO cl_gui_alv_grid,
+      gv_last_mode TYPE c.
+
+
+*&---------------------------------------------------------------------*
+*&      Module  VALIDATE_FIELDS  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE validate_fields_mara INPUT.
+
+  IF rb1_mat = 'X'.
+    IF gv_matnr_mara IS INITIAL.
+      set CURSOR FIELD 'GV_MATNR_MARA'.
+      MESSAGE 'Material number is required.' TYPE 'E'.
+    ENDIF.
+  ENDIF.
+
+ENDMODULE.
+
+
+*&---------------------------------------------------------------------*
+*&      Module  VALIDATE_FIELDS_VBAK  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE validate_fields_vbak INPUT.
+  IF rb2_sal = 'X'.
+    IF gv_vbeln_vbak IS INITIAL.
+      set CURSOR FIELD 'GV_VBELN_VBAK'.
+      MESSAGE 'Sales order number is required.' TYPE 'E'.
+    ENDIF.
+  ENDIF.
+ENDMODULE.
+
+*&---------------------------------------------------------------------*
+*&      Module  USER_COMMAND_0110  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_0110 INPUT.
+
+  CASE sy-ucomm.
+    WHEN 'EXIT'.
+      LEAVE PROGRAM.
+
+    WHEN 'NEXT'.
+
+      IF rb1_mat = 'X'.
+
+        SELECT * FROM mara INTO TABLE gt_mara
+          WHERE matnr = gv_matnr_mara.
+
+        IF sy-subrc <> 0.
+          MESSAGE 'Material does not exist.' TYPE 'E'.
+        ENDIF.
+
+      ELSEIF rb2_sal = 'X'.
+
+        SELECT * FROM vbak INTO TABLE gt_vbak
+          WHERE vbeln = gv_vbeln_vbak.
+
+        IF sy-subrc <> 0.
+          MESSAGE 'Sales order does not exist.' TYPE 'E'.
+        ENDIF.
+
+      ENDIF.
+  ENDCASE.
+ENDMODULE.
+
+
+*&---------------------------------------------------------------------*
+*& Module UPDATE_OUTPUT OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+MODULE update_output OUTPUT.
+DATA: lv_mode TYPE c.
+  " Determine current mode
+  IF rb1_mat = 'X'.
+    lv_mode = 'M'.
+  ELSEIF rb2_sal = 'X'.
+    lv_mode = 'S'.
+  ENDIF.
+   " Recreate ALV if first time OR mode changed
+  IF go_container IS INITIAL OR gv_last_mode <> lv_mode. " check last mode and current mode
+    IF go_alv IS BOUND.
+      CALL METHOD go_alv->free. "Do alv free from the previous structure
+    ENDIF.
+
+    IF go_container is BOUND. " Do container free from the previous
+      CALL METHOD go_container->free.
+    ENDIF.
+
+    "Create object for container
+    CREATE OBJECT go_container
+      EXPORTING container_name = 'CC_ALV'. "Custom container which define in CUstom control
+    CREATE OBJECT go_alv
+      EXPORTING i_parent = go_container.
+    " MATERIAL
+    IF rb1_mat = 'X'.
+      CALL METHOD go_alv->set_table_for_first_display
+        EXPORTING
+          i_structure_name = 'MARA' " If radio button 1 then structure of the alv is for MARA
+        CHANGING
+          it_outtab        = gt_mara.
+    " SALES
+    ELSEIF rb2_sal = 'X'.
+      CALL METHOD go_alv->set_table_for_first_display
+        EXPORTING
+          i_structure_name = 'VBAK' " If radio button 2 then structure of the alv is for VBAK
+        CHANGING
+          it_outtab        = gt_vbak.
+    ENDIF.
+    gv_last_mode = lv_mode.
+  ELSE.
+    CALL METHOD go_alv->check_changed_data.
+    " Only refresh when same mode
+    CALL METHOD go_alv->refresh_table_display
+    EXPORTING
+      i_soft_refresh = ''
+    .
+  ENDIF.
+ENDMODULE.
+
+*&---------------------------------------------------------------------*
+*& Module MODIFY_SCREEN OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+MODULE modify_screen OUTPUT.
+
+" Disable the field ERNAM
+LOOP AT SCREEN.
+  IF rb1_mat = 'X' AND screen-name = 'GV_ERNAM_MARA'.
+    screen-input = 0.
+  ENDIF.
+  MODIFY SCREEN.
+
+ENDLOOP.
+ENDMODULE.
+
+*&---------------------------------------------------------------------*
+*& Module MODIFY_SCREEN_VBAK OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+MODULE modify_screen_vbak OUTPUT.
+" Disable the field ERNAM
+LOOP AT SCREEN.
+  IF rb2_sal = 'X' AND screen-name = 'GV_ERNAM_VBAK'.
+    screen-input = 0.
+  ENDIF.
+  MODIFY SCREEN.
+
+ENDLOOP.
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*& Module STATUS_0100 OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+MODULE status_0100 OUTPUT.
+  SET PF-STATUS 'STATUS_100'.
+ SET TITLEBAR 'MAIN SCREEN'.
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*&      Module  EXIT  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE exit INPUT.
+  LEAVE PROGRAM.
+ENDMODULE.
