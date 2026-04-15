@@ -6,11 +6,10 @@
 - The system uses multiple screens and tab-based navigation to manage and display business data such as Material (MARA) and Sales Document (VBAK) information.
 --
 ## ⚙️ Features
-
+⚙️ Features
 🧭 Dynamic Tabstrip Navigation
-- Switch between multiple subscreens using tab controls
-
--- 🖥️ SAP Dynpro-Based UI
+Switch between multiple subscreens using tab controls
+🖥️ SAP Dynpro-Based UI
 Interactive screen-based application (SE51)
 🔄 Modular Screen Flow Logic
 Clean separation of input/output modules
@@ -18,11 +17,10 @@ Clean separation of input/output modules
 Integration with standard SAP tables:
 MARA (Material Master)
 VBAK (Sales Document Header)
-📊 ALV Reporting
+📈 ALV Reporting
 Interactive ALV Grid with sorting, filtering, and layout customization
 Enhances data analysis and user experience
 ⚡ Event-Driven Processing
-Handles user actions via OK_CODE and SY-UCOMM
 
 🧠 Core Concepts Used
 Module Pool Programming (Dialog Programming)
